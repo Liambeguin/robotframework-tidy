@@ -580,3 +580,11 @@ class TestNormalizeSeparators:
 
     def test_pipes(self):
         run_tidy_and_compare(self.TRANSFORMER_NAME, sources=['pipes.robot'])
+
+
+@patch('robotidy.app.Robotidy.save_model', new=save_tmp_model)
+class TestFixParsingErrors:
+    TRANSFORMER_NAME = 'FixParsingErrors'
+
+    def test_fix(self):
+        run_tidy_and_compare(self.TRANSFORMER_NAME, sources=['test.robot'])
