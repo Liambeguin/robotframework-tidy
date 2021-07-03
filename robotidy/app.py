@@ -1,7 +1,7 @@
 from collections import defaultdict
 from difflib import unified_diff
 from pathlib import Path
-from typing import List, Tuple, Dict, Iterator, Iterable, Optional
+from typing import List, Tuple, Dict, Iterator, Iterable, Optional, Pattern
 
 import click
 from robot.api import get_model
@@ -22,6 +22,8 @@ class Robotidy:
                  transformers: List[Tuple[str, List]],
                  transformers_config: List[Tuple[str, List]],
                  src: Tuple[str, ...],
+                 exclude: Pattern,
+                 extend_exclude: Pattern,
                  overwrite: bool,
                  show_diff: bool,
                  formatting_config: GlobalFormattingConfig,
@@ -30,7 +32,7 @@ class Robotidy:
                  output: Optional[Path],
                  force_order: bool
                  ):
-        self.sources = self.get_paths(src)
+        self.sources = self.get_paths(src, exclude, extend_exclude)
         self.overwrite = overwrite
         self.show_diff = show_diff
         self.check = check
@@ -85,7 +87,7 @@ class Robotidy:
         colorized_output = decorate_diff_with_color(lines)
         click.echo(colorized_output.encode('ascii', 'ignore').decode('ascii'), color=True)
 
-    def get_paths(self, src: Tuple[str, ...]):
+    def get_paths(self, src: Tuple[str, ...], exclude: Pattern, extend_exclude: Pattern):
         sources = set()
         for s in src:
             path = Path(s).resolve()

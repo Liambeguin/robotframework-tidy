@@ -5,11 +5,13 @@ from typing import (
     List,
     Iterable,
     Optional,
+    Pattern,
     Any
 )
 
 import click
 import toml
+import re
 
 from robotidy.app import Robotidy
 from robotidy.transformers import load_transformers
@@ -22,6 +24,7 @@ from robotidy.utils import (
 from robotidy.version import __version__
 
 
+DEFAULT_EXCLUDES = r"/(\.direnv|\.eggs|\.git|\.hg|\.nox|\.tox|\.venv|venv|\.svn|_build|build|dist)/"
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 HELP_MSG = f"""
 Version: {__version__}
@@ -169,6 +172,17 @@ def read_config(ctx: click.Context, param: click.Parameter, value: Optional[str]
     ctx.default_map = default_map
 
 
+def validate_regex(
+    ctx: click.Context,
+    param: click.Parameter,
+    value: Optional[str],
+) -> Optional[Pattern]:
+    try:
+        return re.compile(value) if value is not None else None
+    except re.error:
+        raise click.BadParameter("Not a valid regular expression")
+
+
 def print_description(name: str):
     transformers = load_transformers(None, {}, allow_disabled=True)
     transformer_by_names = {transformer.__class__.__name__: transformer for transformer in transformers}
@@ -225,6 +239,27 @@ def print_transformers_list():
     ),
     is_eager=True,
     metavar='[PATH(S)]'
+)
+@click.option(
+    "--exclude",
+    type=str,
+    callback=validate_regex,
+    help=(
+        "A regular expression that matches files and directories that should be"
+        " excluded on recursive searches. An empty value means no paths are excluded."
+        " Use forward slashes for directories on all platforms."
+        f" [default: {DEFAULT_EXCLUDES}]"
+    ),
+    show_default=False,
+)
+@click.option(
+    "--extend-exclude",
+    type=str,
+    callback=validate_regex,
+    help=(
+        "Like --exclude, but adds additional files and directories on top of the"
+        " excluded ones. (Useful if you simply want to add to the default)"
+    ),
 )
 @click.option(
     "--config",
@@ -347,6 +382,8 @@ def cli(
         transform: List[Tuple[str, List]],
         configure: List[Tuple[str, List]],
         src: Tuple[str, ...],
+        exclude: Optional[Pattern],
+        extend_exlcude: Optional[Pattern],
         overwrite: bool,
         diff: bool,
         check: bool,
@@ -392,6 +429,8 @@ def cli(
         transformers=transform,
         transformers_config=configure,
         src=src,
+        exclude=exclude,
+        extend_exclude=extend_exlcude,
         overwrite=overwrite,
         show_diff=diff,
         formatting_config=formatting_config,
