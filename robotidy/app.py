@@ -1,20 +1,19 @@
 from collections import defaultdict
 from difflib import unified_diff
 from pathlib import Path
-from typing import List, Tuple, Dict, Iterator, Iterable, Optional, Pattern
+from typing import List, Tuple, Dict, Optional, Pattern
 
 import click
 from robot.api import get_model
 from robot.errors import DataError
 
 from robotidy.transformers import load_transformers
+from robotidy.files import get_paths
 from robotidy.utils import (
     StatementLinesCollector,
     decorate_diff_with_color,
     GlobalFormattingConfig
 )
-
-INCLUDE_EXT = ('.robot', '.resource')
 
 
 class Robotidy:
@@ -32,7 +31,7 @@ class Robotidy:
                  output: Optional[Path],
                  force_order: bool
                  ):
-        self.sources = self.get_paths(src, exclude, extend_exclude)
+        self.sources = get_paths(src, exclude, extend_exclude)
         self.overwrite = overwrite
         self.show_diff = show_diff
         self.check = check
@@ -86,28 +85,6 @@ class Robotidy:
         lines = list(unified_diff(old, new, fromfile=f'{path}\tbefore', tofile=f'{path}\tafter'))
         colorized_output = decorate_diff_with_color(lines)
         click.echo(colorized_output.encode('ascii', 'ignore').decode('ascii'), color=True)
-
-    def get_paths(self, src: Tuple[str, ...], exclude: Pattern, extend_exclude: Pattern):
-        sources = set()
-        for s in src:
-            path = Path(s).resolve()
-            if path.is_file():
-                sources.add(path)
-            elif path.is_dir():
-                sources.update(self.iterate_dir(path.iterdir(), exclude, extend_exclude))
-            elif s == '-':
-                sources.add(path)
-
-        return sources
-
-    def iterate_dir(self, paths: Iterable[Path], exclude: Pattern, extend_exclude: Pattern) -> Iterator[Path]:
-        for path in paths:
-            if path.is_file():
-                if path.suffix not in INCLUDE_EXT:
-                    continue
-                yield path
-            elif path.is_dir() and path.name not in {'.git'}:
-                yield from self.iterate_dir(path.iterdir(), exclude, extend_exclude)
 
     @staticmethod
     def convert_configure(configure: List[Tuple[str, List]]) -> Dict[str, List]:

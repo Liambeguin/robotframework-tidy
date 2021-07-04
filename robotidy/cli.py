@@ -3,17 +3,16 @@ from typing import (
     Tuple,
     Dict,
     List,
-    Iterable,
     Optional,
     Pattern,
     Any
 )
 
 import click
-import toml
 import re
 
 from robotidy.app import Robotidy
+from robotidy.files import read_pyproject_config, find_and_read_config, DEFAULT_EXCLUDES
 from robotidy.transformers import load_transformers
 from robotidy.utils import (
     GlobalFormattingConfig,
@@ -25,7 +24,6 @@ from robotidy.version import __version__
 import time
 
 
-DEFAULT_EXCLUDES = r"/(\.direnv|\.eggs|\.git|\.hg|\.nox|\.tox|\.venv|venv|\.svn|_build|build|dist)/"
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 HELP_MSG = f"""
 Version: {__version__}
@@ -83,71 +81,6 @@ class TransformType(click.ParamType):
                   f'Parameters should be provided in format name=value, delimited by :'
             raise ValueError(exc)
         return name, args
-
-
-def find_project_root(srcs: Iterable[str]) -> Path:
-    """Return a directory containing .git, or robotidy.toml.
-    That directory will be a common parent of all files and directories
-    passed in `srcs`.
-    If no directory in the tree contains a marker that would specify it's the
-    project root, the root of the file system is returned.
-    """
-    if not srcs:
-        return Path("/").resolve()
-
-    path_srcs = [Path(Path.cwd(), src).resolve() for src in srcs]
-
-    # A list of lists of parents for each 'src'. 'src' is included as a
-    # "parent" of itself if it is a directory
-    src_parents = [
-        list(path.parents) + ([path] if path.is_dir() else []) for path in path_srcs
-    ]
-
-    common_base = max(
-        set.intersection(*(set(parents) for parents in src_parents)),
-        key=lambda path: path.parts,
-    )
-
-    for directory in (common_base, *common_base.parents):
-        if (directory / ".git").exists():
-            return directory
-
-        if (directory / "robotidy.toml").is_file():
-            return directory
-
-        if (directory / "pyproject.toml").is_file():
-            return directory
-
-    return directory
-
-
-def find_and_read_config(src_paths: Iterable[str]) -> Dict[str, Any]:
-    project_root = find_project_root(src_paths)
-    config_path = project_root / 'robotidy.toml'
-    if config_path.is_file():
-        return read_pyproject_config(str(config_path))
-    pyproject_path = project_root / 'pyproject.toml'
-    if pyproject_path.is_file():
-        return read_pyproject_config(str(pyproject_path))
-    return {}
-
-
-def load_toml_file(path: str) -> Dict[str, Any]:
-    try:
-        config = toml.load(path)
-        click.echo(f"Loaded configuration from {path}")
-        return config
-    except (toml.TomlDecodeError, OSError) as e:
-        raise click.FileError(
-            filename=path, hint=f"Error reading configuration file: {e}"
-        )
-
-
-def read_pyproject_config(path: str) -> Dict[str, Any]:
-    click.echo(f'Reading {path}')
-    config = load_toml_file(path)
-    config = config.get("tool", {}).get("robotidy", {})
-    return {k.replace('--', '').replace('-', '_'): v for k, v in config.items()}
 
 
 def read_config(ctx: click.Context, param: click.Parameter, value: Optional[str]) -> Optional[str]:
