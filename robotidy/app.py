@@ -94,20 +94,20 @@ class Robotidy:
             if path.is_file():
                 sources.add(path)
             elif path.is_dir():
-                sources.update(self.iterate_dir(path.iterdir()))
+                sources.update(self.iterate_dir(path.iterdir(), exclude, extend_exclude))
             elif s == '-':
                 sources.add(path)
 
         return sources
 
-    def iterate_dir(self, paths: Iterable[Path]) -> Iterator[Path]:
+    def iterate_dir(self, paths: Iterable[Path], exclude: Pattern, extend_exclude: Pattern) -> Iterator[Path]:
         for path in paths:
             if path.is_file():
                 if path.suffix not in INCLUDE_EXT:
                     continue
                 yield path
-            elif path.is_dir():
-                yield from self.iterate_dir(path.iterdir())
+            elif path.is_dir() and path.name not in {'.git'}:
+                yield from self.iterate_dir(path.iterdir(), exclude, extend_exclude)
 
     @staticmethod
     def convert_configure(configure: List[Tuple[str, List]]) -> Dict[str, List]:

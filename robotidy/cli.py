@@ -22,6 +22,7 @@ from robotidy.utils import (
     RecommendationFinder
 )
 from robotidy.version import __version__
+import time
 
 
 DEFAULT_EXCLUDES = r"/(\.direnv|\.eggs|\.git|\.hg|\.nox|\.tox|\.venv|venv|\.svn|_build|build|dist)/"
@@ -383,7 +384,7 @@ def cli(
         configure: List[Tuple[str, List]],
         src: Tuple[str, ...],
         exclude: Optional[Pattern],
-        extend_exlcude: Optional[Pattern],
+        extend_exclude: Optional[Pattern],
         overwrite: bool,
         diff: bool,
         check: bool,
@@ -400,6 +401,7 @@ def cli(
         describe_transformer: Optional[str],
         force_order: bool
 ):
+    start = time.time()
     if list_transformers:
         print('--list-transformers is deprecated in 1.3.0. Use --list instead')
         ctx.exit(0)
@@ -416,6 +418,9 @@ def cli(
         print("No source path provided. Run robotidy --help to see how to use robotidy")
         ctx.exit(0)
 
+    if exclude is None:
+        exclude = re.compile(DEFAULT_EXCLUDES)
+
     if config and verbose:
         click.echo(f'Loaded {config} configuration file')
 
@@ -430,7 +435,7 @@ def cli(
         transformers_config=configure,
         src=src,
         exclude=exclude,
-        extend_exclude=extend_exlcude,
+        extend_exclude=extend_exclude,
         overwrite=overwrite,
         show_diff=diff,
         formatting_config=formatting_config,
@@ -440,4 +445,5 @@ def cli(
         force_order=force_order
     )
     status = tidy.transform_files()
+    print(f'Time taken: {time.time() - start}')
     ctx.exit(status)
